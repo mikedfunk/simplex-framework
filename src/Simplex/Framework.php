@@ -8,6 +8,7 @@
 namespace Simplex;
 
 use Exception;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Controller\ControllerResolverInterface;
@@ -21,6 +22,13 @@ use Symfony\Component\Routing\Matcher\UrlMatcherInterface;
  */
 class Framework
 {
+
+    /**
+     * event dispatcher
+     *
+     * @var EventDispatcherInterface
+     */
+    protected $eventDispatcher;
 
     /**
      * url matcher
@@ -41,14 +49,17 @@ class Framework
      *
      * @param UrlMatcherInterface $urlMatcher
      * @param ControllerResolverInterface $controllerResolver
+     * @param EventDispatcherInterface $eventDispatcher
      * @return void
      */
     public function __construct(
         UrlMatcherInterface $urlMatcher,
-        ControllerResolverInterface $controllerResolver
+        ControllerResolverInterface $controllerResolver,
+        EventDispatcherInterface $eventDispatcher
     ) {
         $this->urlMatcher = $urlMatcher;
         $this->controllerResolver = $controllerResolver;
+        $this->eventDispatcher = $eventDispatcher;
     }
 
     /**
@@ -72,15 +83,21 @@ class Framework
             // use a closure, use an object -> method, or just call a function.
             $arguments = $this->controllerResolver->getArguments($request, $controller);
 
-            return call_user_func_array($controller, $arguments);
+            $response = call_user_func_array($controller, $arguments);
 
         } catch (ResourceNotFoundException $e) {
 
-            return new Response('Not Found', 404);
+            $response = new Response('Not Found', 404);
 
         } catch (Exception $e) {
 
-            return new Response('An error occurred', 500);
+            $response = new Response('An error occurred', 500);
         }
+
+        // dispatch an event before returning the response
+        $this->eventDispatcher
+            ->dispatch('response', new ResponseEvent($request, $response));
+
+        return $response;
     }
 }

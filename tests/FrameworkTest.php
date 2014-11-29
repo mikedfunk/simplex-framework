@@ -10,10 +10,12 @@ namespace Simplex\Tests;
 use Exception;
 use RuntimeException;
 use Simplex\Framework;
+use Simplex\ResponseEvent;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Exception\ResourceNotFoundException;
-use Symfony\Component\HttpKernel\Controller\ControllerResolver;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Controller\ControllerResolver;
+use Symfony\Component\Routing\Exception\ResourceNotFoundException;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
  * FrameworkTest
@@ -22,26 +24,6 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class FrameworkTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * phpunit setup
-     *
-     * @return void
-     */
-    public function setUp()
-    {
-
-    }
-
-    /**
-     * phpunit teardown
-     *
-     * @return void
-     */
-    public function tearDown()
-    {
-
-    }
-
 
     /**
      * testNotFoundHandling
@@ -51,7 +33,13 @@ class FrameworkTest extends \PHPUnit_Framework_TestCase
     public function testNotFoundHandling()
     {
         // assemble
-        $framework = $this->getFrameworkForException(new ResourceNotFoundException());
+        $eventDispatcher = $this->getMock(
+            'Symfony\Component\EventDispatcher\EventDispatcherInterface'
+        );
+        $framework = $this->getFrameworkForException(
+            new ResourceNotFoundException(),
+            $eventDispatcher
+        );
 
         // action
         $response = $framework->handle(new Request());
@@ -68,7 +56,13 @@ class FrameworkTest extends \PHPUnit_Framework_TestCase
     public function testErrorHandling()
     {
         // assemble
-        $framework = $this->getFrameworkForException(new RuntimeException());
+        $eventDispatcher = $this->getMock(
+            'Symfony\Component\EventDispatcher\EventDispatcherInterface'
+        );
+        $framework = $this->getFrameworkForException(
+            new RuntimeException(),
+            $eventDispatcher
+        );
 
         // action
         $response = $framework->handle(new Request());
@@ -89,23 +83,29 @@ class FrameworkTest extends \PHPUnit_Framework_TestCase
         $urlMatcher = $this->getMock(
             'Symfony\Component\Routing\Matcher\UrlMatcherInterface'
         );
-        // define a new fake route that will be matched when we call match
+        $request = new Request();
+        $response = new Response('Hello Dork');
+
+        // it should call match and get a valid route
         $urlMatcher->expects($this->once())
             ->method('match')
             ->will($this->returnValue(
                 [
                     '_route' => 'foo',
                     'name' => 'Dork',
-                    '_controller' => function ($name) {
-                        return new Response('Hello ' . $name);
+                    '_controller' => function ($name) use ($response) {
+                        return $response;
                     }
                 ]
             ));
 
+        // it should dispatch a response event
+        $eventDispatcher = $this->setupEventDispatcher($request, $response);
+
         // action
         $controllerResolver = new ControllerResolver();
-        $framework = new Framework($urlMatcher, $controllerResolver);
-        $response = $framework->handle(new Request());
+        $framework = new Framework($urlMatcher, $controllerResolver, $eventDispatcher);
+        $response = $framework->handle($request);
 
         // assert
         $this->assertEquals(200, $response->getStatusCode());
@@ -116,9 +116,11 @@ class FrameworkTest extends \PHPUnit_Framework_TestCase
      * getFrameworkForException
      *
      * @private
+     * @param Exception $exception
+     * @param EventDispatcherInterface $eventDispatcher
      * @return Framework
      */
-    private function getFrameworkForException(Exception $exception)
+    private function getFrameworkForException(Exception $exception, EventDispatcherInterface $eventDispatcher)
     {
         $urlMatcher = $this->getMock(
             'Symfony\Component\Routing\Matcher\UrlMatcherInterface'
@@ -131,6 +133,26 @@ class FrameworkTest extends \PHPUnit_Framework_TestCase
             'Symfony\Component\HttpKernel\Controller\ControllerResolverInterface'
         );
 
-        return new Framework($urlMatcher, $controllerResolver);
+        // it should dispatch a response event
+        $eventDispatcher = $this->setupEventDispatcher(new Request(), new Response());
+
+        return new Framework($urlMatcher, $controllerResolver, $eventDispatcher);
+    }
+
+    /**
+     * setupEventDispatcher
+     *
+     * @param Request $request
+     * @param Response $response
+     * @return EventDispatcher
+     */
+    private function setupEventDispatcher(Request $request, Response $response)
+    {
+        $eventDispatcher = $this->getMock(
+            'Symfony\Component\EventDispatcher\EventDispatcherInterface'
+        );
+        $eventDispatcher->expects($this->once())
+            ->method('dispatch');
+        return $eventDispatcher;
     }
 }
