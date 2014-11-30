@@ -33,7 +33,6 @@ class ResponseEvent extends Event
      */
     protected $response;
 
-
     /**
      * dependency injection
      *

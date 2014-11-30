@@ -1,5 +1,9 @@
 <?php
 
+use Simplex\ContentLengthListener;
+use Simplex\GoogleListener;
+use Simplex\ResponseEvent;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Controller\ControllerResolver;
@@ -19,8 +23,16 @@ $requestContext->fromRequest($request);
 $urlMatcher = new UrlMatcher($routes, $requestContext);
 $controllerResolver = new ControllerResolver();
 
+// what the hell is event listener stuff doing in here?
+$eventDispatcher = new EventDispatcher();
+
+// add event subscribers, which share info about events
+// with getSubscribedEvents()
+$eventDispatcher->addSubscriber(new GoogleListener());
+$eventDispatcher->addSubscriber(new ContentLengthListener());
+
 // let the framework take it from here
-$framework = new Simplex\Framework($urlMatcher, $controllerResolver);
+$framework = new Simplex\Framework($urlMatcher, $controllerResolver, $eventDispatcher);
 $response = $framework->handle($request);
 
 $response->send();
