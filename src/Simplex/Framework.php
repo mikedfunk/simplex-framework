@@ -12,6 +12,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Controller\ControllerResolverInterface;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\Routing\Matcher\UrlMatcherInterface;
 
@@ -20,7 +21,7 @@ use Symfony\Component\Routing\Matcher\UrlMatcherInterface;
  *
  * @author Michael Funk <mike.funk@internetbrands.com>
  */
-class Framework
+class Framework implements HttpKernelInterface
 {
 
     /**
@@ -66,10 +67,15 @@ class Framework
      * handle a request
      *
      * @param Request $request
+     * @param mixed $type (default: HttpKernelInterface::MASTER_REQUEST)
+     * @param bool $catch (default: true)
      * @return Response
      */
-    public function handle(Request $request)
-    {
+    public function handle(
+        Request $request,
+        $type = HttpKernelInterface::MASTER_REQUEST,
+        $catch = true
+    ) {
         try {
             // add request attributes based on the matched route, which is based
             // on the url

@@ -10,6 +10,9 @@ use Symfony\Component\HttpKernel\Controller\ControllerResolver;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\Routing\Matcher\UrlMatcher;
 use Symfony\Component\Routing\RequestContext;
+use Symfony\Component\HttpKernel\HttpCache\HttpCache;
+use Symfony\Component\HttpKernel\HttpCache\Store;
+use Symfony\Component\HttpKernel\HttpCache\Esi;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
@@ -33,6 +36,7 @@ $eventDispatcher->addSubscriber(new ContentLengthListener());
 
 // let the framework take it from here
 $framework = new Simplex\Framework($urlMatcher, $controllerResolver, $eventDispatcher);
+$framework = new HttpCache($framework, new Store(__DIR__ . '/../cache'), new Esi(), ['debug' => true]);
 $response = $framework->handle($request);
 
 $response->send();
