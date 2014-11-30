@@ -10,6 +10,7 @@ namespace Calendar\Controller;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Calendar\Model\LeapYear;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * LeapYearController
@@ -30,13 +31,16 @@ class LeapYearController
     {
         $leapYear = new LeapYear();
         if ($leapYear->isLeapYear($year)) {
-            $response = new Response('Yep, this is a leap year!' . rand());
+            $response = 'Yep, this is a leap year!' . rand();
+            // $response = new Response('Yep, this is a leap year!' . rand());
         } else {
-            $response = new Response('Nope, this is not a leap year.' . rand());
+            $response = 'Nope, this is not a leap year.' . rand();
+            // $response = new Response('Nope, this is not a leap year.' . rand());
         }
 
         // set time-to-live for http caching to 10 seconds
-        $response->setTtl(10);
+        // (worked when we were returning a response directly)
+        // $response->setTtl(10);
 
         return $response;
     }
